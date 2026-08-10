@@ -247,9 +247,8 @@ function render(){
 
   document.getElementById('ringProgress').setAttribute('stroke-dasharray', `${dash} ${c}`);
   document.getElementById('levelNum').textContent = state.level;
-  document.getElementById('xpText').textContent = `${state.xp} / ${need} XP`;
+  document.getElementById('xpText').innerHTML = `<span dir="ltr" style="unicode-bidi:isolate;">${state.xp} / ${need} XP</span>`;
   document.getElementById('completedCount').textContent = `${state.log.length} مهمة`;
-
   renderQuests();
   renderLog();
 }
