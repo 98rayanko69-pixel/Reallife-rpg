@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Life RPG</title>
+<meta name="theme-color" content="#15111F">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Press+Start+2P&display=swap');
+
+  :root{
+    --bg:#15111F; --panel:#1F1A33; --border:#322A4D;
+    --gold:#E8B94B; --teal:#4FD8B8; --danger:#E2574C;
+    --text:#F3EFFB; --muted:#948AB3; --muted2:#665D8A;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:'Tajawal', sans-serif; min-height:100vh;
+    padding-bottom:40px;
+  }
+  .pixel{ font-family:'Press Start 2P', monospace; }
+  .wrap{ max-width:480px; margin:0 auto; padding:24px 16px 100px; }
+
+  .header{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; }
+  .eyebrow{ color:var(--muted); font-size:11px; letter-spacing:2px; }
+  .sub{ color:var(--text); font-size:13px; margin-top:6px; }
+  .count{ color:var(--gold); font-size:11px; }
+
+  .card{ background:var(--panel); border:1px solid var(--border); border-radius:16px; }
+
+  .ring-box{ padding:24px; margin-bottom:20px; display:flex; flex-direction:column; align-items:center; }
+  .ring-holder{ position:relative; width:140px; height:140px; filter:drop-shadow(0 0 10px rgba(232,185,75,0.45)); }
+  .ring-labels{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .lv-label{ color:var(--muted); font-size:10px; }
+  .lv-num{ color:var(--text); font-size:28px; margin-top:4px; }
+  .xp-text{ color:var(--muted); font-size:13px; margin-top:14px; }
+
+  .nudge{ background:#2A2140; border:1px solid var(--gold); border-radius:14px; padding:12px 14px; margin-bottom:16px; font-size:13px; color:var(--text); display:none; }
+  .nudge.show{ display:block; }
+
+  .focus-box{ padding:18px; margin-bottom:20px; text-align:center; }
+  .focus-time{ font-size:30px; margin:10px 0; }
+  .btn{ border:none; border-radius:12px; padding:10px 16px; font-weight:700; cursor:pointer; font-family:'Tajawal',sans-serif; font-size:14px; }
+  .btn-gold{ background:var(--gold); color:var(--bg); }
+  .btn-teal{ background:var(--teal); color:var(--bg); }
+  .btn-outline{ background:transparent; color:var(--muted); border:1px solid var(--border); }
+
+  .section-title{ display:flex; justify-content:space-between; align-items:center; margin:22px 0 12px; }
+  .section-title h2{ font-size:15px; margin:0; }
+  .add-btn{ display:flex; align-items:center; gap:6px; }
+
+  .quest{ padding:12px; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .quest-left{ display:flex; align-items:center; gap:10px; }
+  .quest-icon{ background:var(--border); color:var(--gold); border-radius:10px; width:38px; height:38px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+  .quest-name{ font-size:14px; }
+  .quest-xp{ color:var(--gold); font-size:12px; margin-top:2px; }
+  .quest-actions{ display:flex; gap:8px; }
+  .icon-btn{ border:none; border-radius:999px; width:34px; height:34px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px; }
+  .btn-check{ background:var(--teal); color:var(--bg); }
+  .btn-trash{ background:transparent; color:var(--danger); }
+
+  .empty{ padding:24px; text-align:center; color:var(--muted); }
+
+  .log-row{ display:flex; justify-content:space-between; padding:10px 6px; border-bottom:1px solid var(--panel); font-size:13px; }
+  .log-left{ display:flex; align-items:center; gap:8px; }
+  .log-xp{ color:var(--teal); font-size:12px; }
+  .log-time{ color:var(--muted2); font-size:11px; margin-right:6px; }
+
+  .overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:50; display:none; align-items:flex-end; justify-content:center; }
+  .overlay.show{ display:flex; }
+  .sheet{ width:100%; max-width:480px; background:var(--panel); border:1px solid var(--border); border-radius:24px 24px 0 0; padding:20px; padding-bottom:32px; }
+  .sheet-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+  label{ color:var(--muted); font-size:12px; display:block; margin-bottom:6px; }
+  input[type=text], input[type=number]{
+    width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text);
+    border-radius:12px; padding:11px 12px; font-size:14px; margin-bottom:16px; font-family:'Tajawal',sans-serif;
+  }
+  input:focus{ outline:2px solid var(--gold); }
+  .icon-grid{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; }
+  .icon-pick{ width:44px; height:44px; border-radius:12px; border:1px solid var(--border); background:var(--bg); color:var(--muted); font-size:18px; cursor:pointer; }
+  .icon-pick.active{ background:var(--gold); color:var(--bg); }
+
+  .levelup{ position:fixed; inset:0; z-index:60; display:none; align-items:center; justify-content:center; background:rgba(21,17,31,0.88); }
+  .levelup.show{ display:flex; }
+  .levelup-card{ text-align:center; padding:32px; border:1px solid var(--gold); }
+  .levelup-trophy{ font-size:40px; }
+  .levelup-label{ color:var(--muted); font-size:12px; margin-top:12px; }
+  .levelup-num{ font-size:32px; margin-top:8px; }
+
+  button:focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="header">
+    <div>
+      <div class="eyebrow pixel">LIFE RPG</div>
+      <div class="sub">سجل مهامك واكسب خبرة</div>
+    </div>
+    <div class="count pixel" id="completedCount">0 مهمة</div>
+  </div>
+
+  <div class="nudge" id="nudgeBanner">
+    🌱 لاحظنا إنك ترجع عالتطبيق كتير بدون إنجاز جديد. خذ نفس، وارجع لمهمتك الحالية بدل ما تفتح التطبيق.
+  </div>
+
+  <div class="card ring-box">
+    <div class="ring-holder">
+      <svg width="140" height="140" viewBox="0 0 140 140">
+        <circle cx="70" cy="70" r="54" fill="none" stroke="#322A4D" stroke-width="10"/>
+        <circle id="ringProgress" cx="70" cy="70" r="54" fill="none" stroke="#E8B94B" stroke-width="10"
+          stroke-linecap="round" transform="rotate(-90 70 70)" style="transition:stroke-dasharray 0.6s ease;"/>
+      </svg>
+      <div class="ring-labels">
+        <div class="lv-label pixel">LV</div>
+        <div class="lv-num pixel" id="levelNum">1</div>
+      </div>
+    </div>
+    <div class="xp-text" id="xpText">0 / 100 XP</div>
+  </div>
+
+  <div class="card focus-box">
+    <div style="color:var(--muted); font-size:12px;">وضع التركيز</div>
+    <div class="focus-time pixel" id="focusTime">25:00</div>
+    <button class="btn btn-teal" id="focusBtn">ابدأ جلسة تركيز (+25 XP)</button>
+  </div>
+
+  <div class="section-title">
+    <h2>دفتر المهام</h2>
+    <button class="btn btn-gold add-btn" id="openAddBtn">+ إضافة</button>
+  </div>
+  <div id="questList"></div>
+
+  <div id="logSection" style="display:none;">
+    <div class="section-title"><h2>آخر الإنجازات</h2></div>
+    <div id="logList"></div>
+  </div>
+</div>
+
+<div class="overlay" id="addOverlay">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-head">
+      <div style="font-weight:700;">مهمة جديدة</div>
+      <button class="icon-btn btn-trash" id="closeAddBtn" style="color:var(--muted);">✕</button>
+    </div>
+    <label>اسم المهمة</label>
+    <input type="text" id="questNameInput" placeholder="مثال: مراجعة دروس">
+    <label>قيمة الخبرة (XP)</label>
+    <input type="number" id="questXpInput" min="1" max="999" value="10">
+    <label>أيقونة</label>
+    <div class="icon-grid" id="iconGrid"></div>
+    <button class="btn btn-gold" style="width:100%; padding:14px;" id="saveQuestBtn">حفظ المهمة</button>
+  </div>
+</div>
+
+<div class="levelup" id="levelUpOverlay">
+  <div class="card levelup-card">
+    <div class="levelup-trophy">🏆</div>
+    <div class="levelup-label pixel">LEVEL UP</div>
+    <div class="levelup-num pixel" id="levelUpNum">2</div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
