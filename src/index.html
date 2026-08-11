@@ -27,6 +27,12 @@
   .sub{ color:var(--text); font-size:13px; margin-top:6px; }
   .count{ color:var(--gold); font-size:11px; }
 
+  .streak-badge{
+    background:#2A2140; border:1px solid #4a3d75; color:var(--gold);
+    border-radius:999px; padding:8px 14px; font-size:13px; font-weight:700;
+    margin-bottom:16px; align-items:center; gap:6px; width:fit-content;
+  }
+
   .card{ background:var(--panel); border:1px solid var(--border); border-radius:16px; }
 
   .ring-box{ padding:24px; margin-bottom:20px; display:flex; flex-direction:column; align-items:center; }
@@ -102,6 +108,8 @@
     </div>
     <div class="count pixel" id="completedCount">0 مهمة</div>
   </div>
+
+  <div class="streak-badge" id="streakBadge" style="display:none;"></div>
 
   <div class="nudge" id="nudgeBanner">
     🌱 لاحظنا إنك ترجع عالتطبيق كتير بدون إنجاز جديد. خذ نفس، وارجع لمهمتك الحالية بدل ما تفتح التطبيق.
