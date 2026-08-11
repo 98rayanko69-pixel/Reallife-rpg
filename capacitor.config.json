@@ -1,0 +1,6 @@
+{
+  "appId": "com.rayanko.liferpg",
+  "appName": "Life RPG",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}
