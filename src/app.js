@@ -6,10 +6,30 @@ const ICONS = {
   brain: '🧠', heart: '❤️', music: '🎵', code: '💻', paint: '🎨', sun: '☀️'
 };
 
+// اسم الـStat المرتبط بكل أيقونة - يظهر تلقائياً أول ما تُستخدم الأيقونة بمهمة
+const STAT_LABELS = {
+  dumbbell: 'قوة', book: 'ذكاء', briefcase: 'انضباط', sparkles: 'روح',
+  brain: 'تركيز', heart: 'صحة', music: 'إبداع', code: 'تقنية', paint: 'فن', sun: 'طاقة'
+};
+
 const DEFAULT_QUESTS = [
   { id: 'q1', name: 'تمرين صباحي', xp: 20, icon: 'dumbbell' },
   { id: 'q2', name: 'قراءة 30 دقيقة', xp: 15, icon: 'book' },
   { id: 'q3', name: 'شغل إضافي', xp: 30, icon: 'briefcase' }
+];
+
+// بنك المهام البديلة - تستخدم عند الضغط على زر التبديل 🔄
+const ALTERNATIVE_QUESTS = [
+  { name: 'شرب مي كفاية', xp: 10, icon: 'heart' },
+  { name: 'نوم بدري', xp: 15, icon: 'sun' },
+  { name: 'ترتيب المكان', xp: 15, icon: 'briefcase' },
+  { name: 'تواصل مع صديق أو عائلة', xp: 10, icon: 'heart' },
+  { name: 'تعلم شي جديد', xp: 20, icon: 'brain' },
+  { name: 'مشي 20 دقيقة', xp: 15, icon: 'dumbbell' },
+  { name: 'كتابة يوميات', xp: 10, icon: 'paint' },
+  { name: 'تمرين تنفس أو تأمل', xp: 10, icon: 'brain' },
+  { name: 'طبخ وجبة صحية', xp: 15, icon: 'heart' },
+  { name: 'مراجعة أهداف الأسبوع', xp: 15, icon: 'briefcase' }
 ];
 
 const FOCUS_MINUTES = 25;
@@ -19,7 +39,7 @@ const FOCUS_XP = 25;
 const REMINDER_MINUTES = 60;
 const REMINDER_ID = 1;
 
-function xpForLevel(level){ return 100 + (level - 1) * 40; }
+function xpForLevel(level){ return 40 + (level - 1) * 30; }
 /* ====================================================================== */
 
 const STORAGE_KEY = 'lifeRpgState';
@@ -36,10 +56,15 @@ function loadState(){
       if (parsed.lastActiveDate === undefined) parsed.lastActiveDate = null;
       if (parsed.graceMonthKey === undefined) parsed.graceMonthKey = null;
       if (parsed.graceUsesThisMonth === undefined) parsed.graceUsesThisMonth = 0;
+      if (parsed.dailyCompletions === undefined) parsed.dailyCompletions = { date: null, ids: [] };
+      if (parsed.stats === undefined) parsed.stats = {};
+      if (parsed.history === undefined) parsed.history = {};
+      if (parsed.flexibleQuestId === undefined) parsed.flexibleQuestId = null;
+      if (parsed.swapUsed === undefined) parsed.swapUsed = { date: null, used: false };
       return parsed;
     }
   } catch(e) {}
-  return { level: 1, xp: 0, log: [], quests: DEFAULT_QUESTS, streak: 0, lastActiveDate: null, graceMonthKey: null, graceUsesThisMonth: 0 };
+  return { level: 1, xp: 0, log: [], quests: DEFAULT_QUESTS, streak: 0, lastActiveDate: null, graceMonthKey: null, graceUsesThisMonth: 0, dailyCompletions: { date: null, ids: [] }, stats: {}, history: {}, flexibleQuestId: null, swapUsed: { date: null, used: false } };
 }
 
 /* ---------- سلسلة الأيام (Streak) ---------- */
@@ -55,6 +80,75 @@ function daysBetween(a, b){
   const db = new Date(b + 'T00:00:00');
   return Math.round((db - da) / 86400000);
 }
+
+/* ---------- تجدد المهام يومياً ---------- */
+function resetDailyIfNeeded(){
+  const today = todayStr();
+  if (state.dailyCompletions.date !== today) {
+    state.dailyCompletions = { date: today, ids: [] };
+  }
+  if (state.swapUsed.date !== today) {
+    state.swapUsed = { date: today, used: false };
+  }
+}
+
+/* ---------- الإحصائيات (Stats) - تلقائية حسب أيقونة المهمة ---------- */
+function awardStatXp(iconKey, amount){
+  if (!STAT_LABELS[iconKey]) return; // أيقونة غير معروفة، تجاهل
+  if (!state.stats[iconKey]) state.stats[iconKey] = { xp: 0, level: 1 };
+  const s = state.stats[iconKey];
+  s.xp += amount;
+  while (s.xp >= xpForLevel(s.level)) {
+    s.xp -= xpForLevel(s.level);
+    s.level += 1;
+  }
+}
+
+function renderStats(){
+  const section = document.getElementById('statsSection');
+  const list = document.getElementById('statsList');
+  const keys = Object.keys(state.stats);
+  if (keys.length === 0) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  list.innerHTML = keys.map(k => {
+    const s = state.stats[k];
+    const need = xpForLevel(s.level);
+    const pct = Math.min(100, Math.round((s.xp / need) * 100));
+    return `
+      <div class="stat-card">
+        <div class="stat-top">
+          <span>${ICONS[k] || '✨'} ${STAT_LABELS[k] || 'عام'}</span>
+          <span class="pixel" style="font-size:10px; color:var(--gold);">LV ${s.level}</span>
+        </div>
+        <div class="stat-bar-track"><div class="stat-bar-fill" style="width:${pct}%;"></div></div>
+      </div>
+    `;
+  }).join('');
+}
+
+/* ---------- سجل آخر ١٤ يوم ---------- */
+function recordHistory(){
+  const t = todayStr();
+  state.history[t] = (state.history[t] || 0) + 1;
+}
+
+function renderHistory(){
+  const container = document.getElementById('historyList');
+  const days = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    days.push({ dayNum: d.getDate(), active: !!state.history[key] });
+  }
+  container.innerHTML = days.map(d => `
+    <div style="display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0;">
+      <div style="width:20px; height:20px; border-radius:6px; background:${d.active ? 'var(--teal)' : 'var(--border)'};"></div>
+      <div style="font-size:9px; color:var(--muted2);">${d.dayNum}</div>
+    </div>
+  `).join('');
+}
+
 function updateStreak(){
   const today = todayStr();
   const curMonth = today.slice(0, 7);
@@ -140,6 +234,7 @@ async function scheduleHourlyReminder(){
 
 /* ---------- رسم الحلقة والليفل ---------- */
 function render(){
+  resetDailyIfNeeded();
   const need = xpForLevel(state.level);
   const pct = Math.min(100, Math.round((state.xp / need) * 100));
   const r = 54, c = 2 * Math.PI * r;
@@ -161,16 +256,21 @@ function render(){
 
   renderQuests();
   renderLog();
+  renderStats();
+  renderHistory();
 }
 
 function renderQuests(){
   const list = document.getElementById('questList');
   if (state.quests.length === 0) {
-    list.innerHTML = `<div class="card empty">دفتر المهام فاضي، أضف أول مهمة وابدأ تكسب خبرة</div>`;
+    list.innerHTML = `<div class="card empty">ما إلك مهام مفعّلة اليوم — كل مهامك موجودة أدناه</div>`;
     return;
   }
-  list.innerHTML = state.quests.map(q => `
-    <div class="card quest">
+  list.innerHTML = state.quests.map(q => {
+    const doneToday = state.dailyCompletions.ids.includes(q.id);
+    const swapDisabled = state.swapUsed.used;
+    return `
+    <div class="card quest ${doneToday ? 'quest-done' : ''}">
       <div class="quest-left">
         <div class="quest-icon">${ICONS[q.icon] || '✨'}</div>
         <div>
@@ -179,11 +279,15 @@ function renderQuests(){
         </div>
       </div>
       <div class="quest-actions">
-        <button class="icon-btn btn-check" onclick="completeQuest('${q.id}')" aria-label="إنجاز">✓</button>
+        ${doneToday
+          ? `<span class="done-check">✔</span>`
+          : `<button class="icon-btn btn-check" onclick="completeQuest('${q.id}')" aria-label="إنجاز">✓</button>`}
+        <button class="icon-btn btn-swap" ${swapDisabled ? 'disabled style="opacity:0.35;"' : `onclick="swapQuest('${q.id}')"`} aria-label="تبديل">🔄</button>
         <button class="icon-btn btn-trash" onclick="deleteQuest('${q.id}')" aria-label="حذف">🗑</button>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function renderLog(){
@@ -211,6 +315,9 @@ function escapeHtml(str){
 
 /* ---------- إكمال مهمة ---------- */
 window.completeQuest = function(id){
+  resetDailyIfNeeded();
+  if (state.dailyCompletions.ids.includes(id)) return; // اتعملت اليوم أصلاً
+
   const quest = state.quests.find(q => q.id === id);
   if (!quest) return;
 
@@ -227,7 +334,10 @@ window.completeQuest = function(id){
   state.xp = curXp;
   state.log.unshift({ id: uid(), name: quest.name, xp: quest.xp, icon: quest.icon, ts: Date.now() });
   state.log = state.log.slice(0, 30);
+  state.dailyCompletions.ids.push(id);
+  awardStatXp(quest.icon, quest.xp);
   updateStreak();
+  recordHistory();
   saveState();
   render();
   clearOpensAfterCompletion();
@@ -241,44 +351,22 @@ window.deleteQuest = function(id){
   render();
 };
 
-/* ---------- إضافة مهمة ---------- */
-let selectedIcon = 'sparkles';
-
-function buildIconGrid(){
-  const grid = document.getElementById('iconGrid');
-  grid.innerHTML = Object.keys(ICONS).map(k => `
-    <button type="button" class="icon-pick ${k === selectedIcon ? 'active' : ''}" data-icon="${k}">${ICONS[k]}</button>
-  `).join('');
-  grid.querySelectorAll('.icon-pick').forEach(btn => {
-    btn.addEventListener('click', () => {
-      selectedIcon = btn.dataset.icon;
-      buildIconGrid();
-    });
-  });
-}
-
-document.getElementById('openAddBtn').addEventListener('click', () => {
-  document.getElementById('addOverlay').classList.add('show');
-  buildIconGrid();
-});
-document.getElementById('closeAddBtn').addEventListener('click', () => {
-  document.getElementById('addOverlay').classList.remove('show');
-});
-document.getElementById('addOverlay').addEventListener('click', () => {
-  document.getElementById('addOverlay').classList.remove('show');
-});
-document.getElementById('saveQuestBtn').addEventListener('click', () => {
-  const nameInput = document.getElementById('questNameInput');
-  const xpInput = document.getElementById('questXpInput');
-  const name = nameInput.value.trim();
-  if (!name) return;
-  const xp = Math.max(1, Math.min(999, Number(xpInput.value) || 1));
-  state.quests.unshift({ id: uid(), name, xp, icon: selectedIcon });
+window.swapQuest = function(id){
+  if (state.swapUsed.used) return; // استُخدم التبديل اليوم أصلاً
+  const current = state.quests.find(q => q.id === id);
+  if (!current) return;
+  const usedNames = state.quests.map(q => q.name);
+  const options = ALTERNATIVE_QUESTS.filter(a => !usedNames.includes(a.name));
+  if (options.length === 0) return; // ما تبقى بدائل جديدة
+  const pick = options[Math.floor(Math.random() * options.length)];
+  current.name = pick.name;
+  current.xp = pick.xp;
+  current.icon = pick.icon;
+  state.dailyCompletions.ids = state.dailyCompletions.ids.filter(qid => qid !== id); // صارت مهمة مختلفة
+  state.swapUsed = { date: todayStr(), used: true };
   saveState();
   render();
-  nameInput.value = ''; xpInput.value = 10; selectedIcon = 'sparkles';
-  document.getElementById('addOverlay').classList.remove('show');
-});
+};
 
 /* ---------- ليفل أب ---------- */
 function showLevelUp(level){
@@ -333,7 +421,9 @@ function stopFocus(completed){
     state.xp = curXp;
     state.log.unshift({ id: uid(), name: `جلسة تركيز ${FOCUS_MINUTES} دقيقة`, xp: FOCUS_XP, icon: 'brain', ts: Date.now() });
     state.log = state.log.slice(0, 30);
+    awardStatXp('brain', FOCUS_XP);
     updateStreak();
+    recordHistory();
     saveState();
     render();
     clearOpensAfterCompletion();
@@ -345,4 +435,3 @@ function stopFocus(completed){
 render();
 checkDistractionNudge();
 scheduleHourlyReminder();
-  
