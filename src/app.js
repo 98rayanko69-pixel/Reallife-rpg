@@ -435,3 +435,4 @@ function stopFocus(completed){
 render();
 checkDistractionNudge();
 scheduleHourlyReminder();
+    
